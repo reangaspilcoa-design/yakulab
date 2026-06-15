@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Obra {
+  id                   Int     @id @default(autoincrement())
+  codigoUnico          String  @unique @map("codigo_unico")
+  nombreInversion      String  @map("nombre_inversion")
+  entidad              String?
+  nivel                String?
+  estado               String?
+  situacion            String?
+  segmento             String?
+  departamento         String?
+  provincia            String?
+  distrito             String?
+  ubigeo               String?
+  latitud              Float?
+  longitud             Float?
+  fuenteCoord          String? @map("fuente_coord")
+  costoActualizado     Float?  @map("costo_actualizado")
+  devenAcumulAnioAnt   Float?  @map("deven_acumul_anio_ant")
+  saldoEjecutar        Float?  @map("saldo_ejecutar")
+  avanceEjecucionProxy Float?  @map("avance_ejecucion_proxy")
+  diasSinDevengado     Int?    @map("dias_sin_devengado")
+  diasSobrePlazo       Int?    @map("dias_sobre_plazo")
+  scoreRiesgo          Int?    @map("score_riesgo")
+  semaforo             String?
+  alertaTexto          String? @map("alerta_texto")
+  numHabitantesBenef   Float?  @map("num_habitantes_benef")
+  desModalidad         String? @map("des_modalidad")
+  fecIniEjecucion      String? @map("fec_ini_ejecucion")
+  fecFinEjecucion      String? @map("fec_fin_ejecucion")
+  tieneF9              String? @map("tiene_f9")
+  tieneF8              String? @map("tiene_f8")
+
+  @@index([semaforo])
+  @@index([segmento])
+  @@index([provincia])
+  @@map("obras")
+}
