@@ -40,14 +40,19 @@ function getScoreOpacity(score: number): number {
   return 0.15
 }
 
-export default function Mapa() {
+interface MapaProps {
+  filtroSemaforo: string
+  filtroSegmento: string
+  onSemaforoChange: (val: string) => void
+  onSegmentoChange: (val: string) => void
+}
+
+export default function Mapa({ filtroSemaforo, filtroSegmento, onSemaforoChange, onSegmentoChange }: MapaProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filtro, setFiltro] = useState<'TODOS' | 'ROJO' | 'AMBAR' | 'VERDE'>('TODOS')
-  const [conteos, setConteos] = useState({ total: 0, ROJO: 0, AMBAR: 0, VERDE: 0 })
-  const markersRef = useRef<any[]>([])
+  const markersGroupRef = useRef<any>(null)
   const [capas, setCapas] = useState({
     coropleta: true,
     zonasCriticas: true,
@@ -78,26 +83,50 @@ export default function Mapa() {
 
       if (!mapRef.current || mapInstanceRef.current) return
 
-      const map = L.map(mapRef.current, {
-        center: [-5.2, -80.6],
-        zoom: 8,
-        zoomControl: true,
-      })
+      // Cargar MarkerCluster CSS y JS
+      const mcCss = document.createElement('link')
+      mcCss.rel = 'stylesheet'
+      mcCss.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'
+      document.head.appendChild(mcCss)
+      
+      const mcCssDef = document.createElement('link')
+      mcCssDef.rel = 'stylesheet'
+      mcCssDef.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'
+      document.head.appendChild(mcCssDef)
 
-      mapInstanceRef.current = map
+      const mcScript = document.createElement('script')
+      mcScript.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
+      
+      mcScript.onload = async () => {
+        if (!mapRef.current) return
+        
+        const map = L.map(mapRef.current, {
+          center: [-5.2, -80.6],
+          zoom: 8,
+          zoomControl: true,
+        })
+  
+        mapInstanceRef.current = map
+  
+        // Dark tile layer — CartoDB Dark Matter
+        L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+          {
+            attribution:
+              '© <a href="https://www.openstreetmap.org/copyright">OSM</a> · © <a href="https://carto.com/">CARTO</a>',
+            maxZoom: 18,
+            subdomains: 'abcd',
+          }
+        ).addTo(map)
+        
+        // Inicializar grupo de marcadores
+        markersGroupRef.current = (L as any).markerClusterGroup({
+          maxClusterRadius: 40,
+          spiderfyOnMaxZoom: true,
+        })
+        map.addLayer(markersGroupRef.current)
 
-      // Dark tile layer — CartoDB Dark Matter
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        {
-          attribution:
-            '© <a href="https://www.openstreetmap.org/copyright">OSM</a> · © <a href="https://carto.com/">CARTO</a>',
-          maxZoom: 18,
-          subdomains: 'abcd',
-        }
-      ).addTo(map)
-
-      // ── CAPA 1: Coropleta de riesgo por distrito ──
+        // ── CAPA 1: Coropleta de riesgo por distrito ──
       try {
         const geoRes = await fetch('/distritos_riesgo.geojson')
         if (geoRes.ok) {
@@ -164,17 +193,31 @@ export default function Mapa() {
         }
       } catch {}
 
-      // ── CAPA 3: Puntos de obras (desde API / Supabase) ──
-      try {
-        const res = await fetch('/api/obras?mapa=1')
-        const data = await res.json()
-        const obras: Obra[] = data.obras
+      // ── CAPA 3: Puntos de obras (se cargarán en el useEffect de filtro) ──
+      setLoading(false)
+      } // Fin de mcScript.onload
+      document.head.appendChild(mcScript)
+    } // Fin de script.onload
+    document.head.appendChild(script)
+  }, [])
 
-        const cnt = { total: obras.length, ROJO: 0, AMBAR: 0, VERDE: 0 }
-        obras.forEach(o => {
-          if (o.semaforo in cnt) (cnt as any)[o.semaforo]++
-        })
-        setConteos(cnt)
+  // Cargar obras cuando cambian los filtros
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markersGroupRef.current) return
+    setLoading(true)
+
+    const params = new URLSearchParams()
+    if (filtroSemaforo !== 'TODOS') params.set('semaforo', filtroSemaforo)
+    if (filtroSegmento !== 'TODOS') params.set('segmento', filtroSegmento)
+
+    fetch(`/api/obras?${params}&mapa=1`)
+      .then(res => res.json())
+      .then(data => {
+        const obras: Obra[] = data.obras
+        const L = (window as any).L
+        const clusterGroup = markersGroupRef.current
+        
+        clusterGroup.clearLayers()
 
         obras.forEach(obra => {
           if (!obra.latitud || !obra.longitud) return
@@ -211,33 +254,18 @@ export default function Mapa() {
               <small style="color:#64748b">${diasTexto} · ${precisionTexto}</small>
             </div>
           `)
-
-          marker._semaforo = obra.semaforo
-          marker.addTo(map)
-          markersRef.current.push(marker)
+          clusterGroup.addLayer(marker)
         })
-
         setLoading(false)
-      } catch {
+      })
+      .catch(() => {
         setError('Error cargando obras. ¿Está la BD conectada?')
         setLoading(false)
-      }
-    }
-    document.head.appendChild(script)
-  }, [])
+      })
+  }, [filtroSemaforo, filtroSegmento])
 
-  // Filtro por semáforo
-  useEffect(() => {
-    if (!mapInstanceRef.current) return
-    markersRef.current.forEach(marker => {
-      const map = mapInstanceRef.current
-      if (filtro === 'TODOS' || marker._semaforo === filtro) {
-        if (!map.hasLayer(marker)) marker.addTo(map)
-      } else {
-        if (map.hasLayer(marker)) map.removeLayer(marker)
-      }
-    })
-  }, [filtro])
+  // Eliminar el useEffect manual de filtrado, ya que ahora 
+  // se maneja recargando de la API (arriba)
 
   // Toggle capas
   useEffect(() => {
@@ -255,16 +283,12 @@ export default function Mapa() {
       if (!capas.zonasCriticas && map.hasLayer(zonasCriticas)) map.removeLayer(zonasCriticas)
     }
 
-    markersRef.current.forEach(marker => {
-      if (capas.obras) {
-        if (filtro === 'TODOS' || marker._semaforo === filtro) {
-          if (!map.hasLayer(marker)) marker.addTo(map)
-        }
-      } else {
-        if (map.hasLayer(marker)) map.removeLayer(marker)
-      }
-    })
-  }, [capas, filtro])
+    const clusterGroup = markersGroupRef.current
+    if (clusterGroup) {
+      if (capas.obras && !map.hasLayer(clusterGroup)) clusterGroup.addTo(map)
+      if (!capas.obras && map.hasLayer(clusterGroup)) map.removeLayer(clusterGroup)
+    }
+  }, [capas])
 
   const toggleCapa = (capa: keyof typeof capas) => {
     setCapas(prev => ({ ...prev, [capa]: !prev[capa] }))
@@ -353,61 +377,7 @@ export default function Mapa() {
         {/* Divider */}
         <div style={{ height: 1, background: 'var(--border-default)', margin: '6px 0' }} />
 
-        {/* Semáforo filter */}
-        <div
-          style={{
-            fontWeight: 600,
-            marginBottom: 4,
-            color: 'var(--text-secondary)',
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-          }}
-        >
-          Filtrar semáforo
-        </div>
-        {(['TODOS', 'ROJO', 'AMBAR', 'VERDE'] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setFiltro(s)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background:
-                filtro === s ? 'rgba(255,255,255,0.08)' : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: 6,
-              padding: '5px 8px',
-              textAlign: 'left',
-              fontSize: 12,
-              transition: 'all 150ms ease',
-              fontFamily: 'inherit',
-            }}
-          >
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                flexShrink: 0,
-                background: s === 'TODOS' ? '#64748b' : COLORS[s],
-                boxShadow:
-                  s !== 'TODOS' ? `0 0 6px ${COLORS[s]}66` : 'none',
-              }}
-            />
-            <span style={{ color: 'var(--text-secondary)' }}>
-              {s === 'TODOS'
-                ? `Todos (${conteos.total})`
-                : s === 'ROJO'
-                  ? `Rojo (${conteos.ROJO})`
-                  : s === 'AMBAR'
-                    ? `Ámbar (${conteos.AMBAR})`
-                    : `Verde (${conteos.VERDE})`}
-            </span>
-          </button>
-        ))}
+        {/* Eliminado el filtro duplicado de semáforo local, ahora lo maneja page.tsx */}
       </div>
 
       {/* Legend — bottom left */}

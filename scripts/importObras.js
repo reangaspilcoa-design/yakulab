@@ -43,37 +43,58 @@ async function main() {
     return String(v).trim()
   }
 
-  const records = data.map(r => ({
-    codigoUnico:          String(r.CODIGO_UNICO || '').trim(),
-    nombreInversion:      r.NOMBRE_INVERSION || '',
-    entidad:              toStr(r.ENTIDAD),
-    nivel:                toStr(r.NIVEL),
-    estado:               toStr(r.ESTADO),
-    situacion:            toStr(r.SITUACION),
-    segmento:             toStr(r.segmento),
-    departamento:         toStr(r.DEPARTAMENTO),
-    provincia:            toStr(r.PROVINCIA),
-    distrito:             toStr(r.DISTRITO),
-    ubigeo:               String(r.UBIGEO || '').trim().padStart(6, '0'),
-    latitud:              toFloat(r.LATITUD),
-    longitud:             toFloat(r.LONGITUD),
-    fuenteCoord:          toStr(r.fuente_coord),
-    costoActualizado:     toFloat(r.COSTO_ACTUALIZADO),
-    devenAcumulAnioAnt:   toFloat(r.DEVEN_ACUMUL_ANIO_ANT),
-    saldoEjecutar:        toFloat(r.SALDO_EJECUTAR),
-    avanceEjecucionProxy: toFloat(r.avance_ejecucion_proxy),
-    diasSinDevengado:     toInt(r.dias_sin_devengado),
-    diasSobrePlazo:       toInt(r.dias_sobre_plazo),
-    scoreRiesgo:          toInt(r.score_riesgo),
-    semaforo:             toStr(r.semaforo),
-    alertaTexto:          toStr(r.alerta_texto),
-    numHabitantesBenef:   toFloat(r.NUM_HABITANTES_BENEF),
-    desModalidad:         toStr(r.DES_MODALIDAD),
-    fecIniEjecucion:      toStr(r.FEC_INI_EJECUCION),
-    fecFinEjecucion:      toStr(r.FEC_FIN_EJECUCION),
-    tieneF9:              toStr(r.TIENE_F9),
-    tieneF8:              toStr(r.TIENE_F8),
-  })).filter(r => r.codigoUnico && r.codigoUnico !== '')
+  const records = data.map(r => {
+    let score = toInt(r.score_riesgo)
+    let semaforo = toStr(r.semaforo)
+    let alerta = toStr(r.alerta_texto) || ''
+    const diasSinDev = toInt(r.dias_sin_devengado)
+
+    // Fix 1: Corregir centinela 999 (opacidad +15 en lugar de paralización +45 = -30 puntos)
+    if (diasSinDev === 999 && alerta.includes('999d')) {
+      if (score !== null) {
+        score -= 30
+        if (score >= 60) semaforo = 'ROJO'
+        else if (score >= 30) semaforo = 'AMBAR'
+        else semaforo = 'VERDE'
+      }
+      alerta = alerta.replace('Sin ejecución 999d', 'Sin devengado registrado (sin dato)')
+    }
+
+    // Fix 2: Expandir abreviaturas para mejor legibilidad en el UI
+    alerta = alerta.replace(/(\d+)a sobre plazo/, '$1 años sobre plazo')
+
+    return {
+      codigoUnico:          String(r.CODIGO_UNICO || '').trim(),
+      nombreInversion:      r.NOMBRE_INVERSION || '',
+      entidad:              toStr(r.ENTIDAD),
+      nivel:                toStr(r.NIVEL),
+      estado:               toStr(r.ESTADO),
+      situacion:            toStr(r.SITUACION),
+      segmento:             toStr(r.segmento),
+      departamento:         toStr(r.DEPARTAMENTO),
+      provincia:            toStr(r.PROVINCIA),
+      distrito:             toStr(r.DISTRITO),
+      ubigeo:               String(r.UBIGEO || '').trim().padStart(6, '0'),
+      latitud:              toFloat(r.LATITUD),
+      longitud:             toFloat(r.LONGITUD),
+      fuenteCoord:          toStr(r.fuente_coord),
+      costoActualizado:     toFloat(r.COSTO_ACTUALIZADO),
+      devenAcumulAnioAnt:   toFloat(r.DEVEN_ACUMUL_ANIO_ANT),
+      saldoEjecutar:        toFloat(r.SALDO_EJECUTAR),
+      avanceEjecucionProxy: toFloat(r.avance_ejecucion_proxy),
+      diasSinDevengado:     diasSinDev,
+      diasSobrePlazo:       toInt(r.dias_sobre_plazo),
+      scoreRiesgo:          score,
+      semaforo:             semaforo,
+      alertaTexto:          alerta,
+      numHabitantesBenef:   toFloat(r.NUM_HABITANTES_BENEF),
+      desModalidad:         toStr(r.DES_MODALIDAD),
+      fecIniEjecucion:      toStr(r.FEC_INI_EJECUCION),
+      fecFinEjecucion:      toStr(r.FEC_FIN_EJECUCION),
+      tieneF9:              toStr(r.TIENE_F9),
+      tieneF8:              toStr(r.TIENE_F8),
+    }
+  }).filter(r => r.codigoUnico && r.codigoUnico !== '')
 
   console.log(`📦 ${records.length} obras parseadas del CSV`)
   console.log(`🔄 Cargando en lotes de ${BATCH_SIZE}...`)

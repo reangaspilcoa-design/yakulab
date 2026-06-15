@@ -16,6 +16,7 @@ interface Stats {
   ambares: number
   verdes: number
   enEjecucion: number
+  criticasEnEjecucion: number
   inversionTotal: number
   poblacionBenef: number
   paralizacionLegal: number
@@ -25,6 +26,11 @@ interface Stats {
 
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null)
+  
+  // Filtros unificados
+  const [filtroSemaforo, setFiltroSemaforo] = useState('TODOS')
+  const [filtroSegmento, setFiltroSegmento] = useState('TODOS')
+
 
   useEffect(() => {
     fetch('/api/stats')
@@ -111,7 +117,7 @@ export default function Home() {
         >
           <StatCard label="Total de obras" value={stats?.total} icon="📊" />
           <StatCard
-            label="Inversión S/"
+            label="Inversión monitoreada"
             value={stats?.inversionTotal ? `S/ ${(stats.inversionTotal / 1000000).toFixed(1)}M` : undefined}
             icon="💰"
           />
@@ -121,8 +127,8 @@ export default function Home() {
             icon="⚖️"
           />
           <StatCard
-            label="Críticas"
-            value={stats?.rojos}
+            label="Críticas (en ejecución)"
+            value={stats?.criticasEnEjecucion}
             color="var(--semaforo-rojo)"
             bgColor="var(--semaforo-rojo-bg)"
             icon="🔴"
@@ -201,7 +207,12 @@ export default function Home() {
                 boxShadow: 'var(--shadow-lg)',
               }}
             >
-              <Mapa />
+              <Mapa 
+                filtroSemaforo={filtroSemaforo} 
+                filtroSegmento={filtroSegmento} 
+                onSemaforoChange={setFiltroSemaforo} 
+                onSegmentoChange={setFiltroSegmento} 
+              />
             </div>
           </div>
 
@@ -222,7 +233,12 @@ export default function Home() {
                 boxShadow: 'var(--shadow-lg)',
               }}
             >
-              <TablaObras />
+              <TablaObras 
+                filtroSemaforo={filtroSemaforo} 
+                filtroSegmento={filtroSegmento} 
+                onSemaforoChange={setFiltroSemaforo} 
+                onSegmentoChange={setFiltroSegmento} 
+              />
             </div>
           </div>
         </div>
