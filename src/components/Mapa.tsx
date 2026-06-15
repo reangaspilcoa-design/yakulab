@@ -63,6 +63,8 @@ export default function Mapa({ filtroSemaforo, filtroSegmento, onSemaforoChange,
     zonasCriticas: null,
   })
 
+  const [isMapReady, setIsMapReady] = useState(false)
+
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (mapInstanceRef.current) return
@@ -194,7 +196,7 @@ export default function Mapa({ filtroSemaforo, filtroSegmento, onSemaforoChange,
       } catch {}
 
       // ── CAPA 3: Puntos de obras (se cargarán en el useEffect de filtro) ──
-      setLoading(false)
+      setIsMapReady(true)
       } // Fin de mcScript.onload
       document.head.appendChild(mcScript)
     } // Fin de script.onload
@@ -203,7 +205,7 @@ export default function Mapa({ filtroSemaforo, filtroSegmento, onSemaforoChange,
 
   // Cargar obras cuando cambian los filtros
   useEffect(() => {
-    if (!mapInstanceRef.current || !markersGroupRef.current) return
+    if (!isMapReady || !mapInstanceRef.current || !markersGroupRef.current) return
     setLoading(true)
 
     const params = new URLSearchParams()
