@@ -22,21 +22,11 @@ const SEMAFORO_STYLE: Record<string, { bg: string; text: string; dot: string }> 
   VERDE: { bg: 'var(--semaforo-verde-bg)', text: 'var(--semaforo-verde)', dot: '🟢' },
 }
 
-interface TablaObrasProps {
-  filtroSemaforo: string
-  filtroSegmento: string
-  onSemaforoChange: (val: string) => void
-  onSegmentoChange: (val: string) => void
-}
-
-export default function TablaObras({ 
-  filtroSemaforo, 
-  filtroSegmento, 
-  onSemaforoChange, 
-  onSegmentoChange 
-}: TablaObrasProps) {
+export default function TablaObras() {
   const [obras, setObras] = useState<Obra[]>([])
   const [loading, setLoading] = useState(true)
+  const [filtroSemaforo, setFiltroSemaforo] = useState('ROJO')
+  const [filtroSegmento, setFiltroSegmento] = useState('EN_EJECUCION_ACTIVA')
   const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
@@ -106,7 +96,7 @@ export default function TablaObras({
         />
         <select
           value={filtroSemaforo}
-          onChange={e => onSemaforoChange(e.target.value)}
+          onChange={e => setFiltroSemaforo(e.target.value)}
           style={inputStyle}
         >
           <option value="TODOS">Todos los semáforos</option>
@@ -116,7 +106,7 @@ export default function TablaObras({
         </select>
         <select
           value={filtroSegmento}
-          onChange={e => onSegmentoChange(e.target.value)}
+          onChange={e => setFiltroSegmento(e.target.value)}
           style={inputStyle}
         >
           <option value="TODOS">Todos los segmentos</option>

@@ -1,16 +1,7 @@
-import { prisma } from '@/lib/prisma'
+import obrasData from '../../../../YAKULAB_DATA.json'
 
 export async function GET() {
-  const obras = await prisma.obra.findMany({
-    select: {
-      provincia: true,
-      segmento: true,
-      semaforo: true,
-      costoActualizado: true,
-      numHabitantesBenef: true,
-      diasSinDevengado: true
-    }
-  });
+  const obras = obrasData as any[];
 
   let total = 0;
   let rojos = 0;
@@ -20,7 +11,6 @@ export async function GET() {
   let inversionTotal = 0;
   let poblacionBenef = 0;
   let paralizacionLegal = 0;
-  let criticasEnEjecucion = 0;
 
   const porProvincia: Record<string, { provincia: string; total: number; rojos: number; ambares: number; verdes: number }> = {};
   const porSegmento: Record<string, { segmento: string; total: number; rojos: number; ambares: number; verdes: number }> = {};
@@ -32,7 +22,6 @@ export async function GET() {
     if (o.semaforo === 'VERDE') verdes++;
     if (o.segmento === 'EN_EJECUCION_ACTIVA') enEjecucion++;
     if (o.diasSinDevengado !== null && o.diasSinDevengado >= 180 && o.diasSinDevengado !== 999) paralizacionLegal++;
-    if (o.semaforo === 'ROJO' && o.segmento === 'EN_EJECUCION_ACTIVA') criticasEnEjecucion++;
 
     inversionTotal += o.costoActualizado || 0;
     poblacionBenef += o.numHabitantesBenef || 0;
@@ -58,7 +47,6 @@ export async function GET() {
     ambares,
     verdes,
     enEjecucion,
-    criticasEnEjecucion,
     inversionTotal,
     poblacionBenef,
     paralizacionLegal,

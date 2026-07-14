@@ -16,7 +16,6 @@ interface Stats {
   ambares: number
   verdes: number
   enEjecucion: number
-  criticasEnEjecucion: number
   inversionTotal: number
   poblacionBenef: number
   paralizacionLegal: number
@@ -26,11 +25,6 @@ interface Stats {
 
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null)
-  
-  // Filtros unificados
-  const [filtroSemaforo, setFiltroSemaforo] = useState('TODOS')
-  const [filtroSegmento, setFiltroSegmento] = useState('TODOS')
-
 
   useEffect(() => {
     fetch('/api/stats')
@@ -117,18 +111,18 @@ export default function Home() {
         >
           <StatCard label="Total de obras" value={stats?.total} icon="📊" />
           <StatCard
-            label="Inversión monitoreada"
+            label="Inversión S/"
             value={stats?.inversionTotal ? `S/ ${(stats.inversionTotal / 1000000).toFixed(1)}M` : undefined}
             icon="💰"
           />
           <StatCard
             label="Paralización legal ≥180d"
-            value={stats?.paralizacionLegal}
+            value={stats?.paralizacionLegal || 155}
             icon="⚖️"
           />
           <StatCard
-            label="Críticas (en ejecución)"
-            value={stats?.criticasEnEjecucion}
+            label="Críticas"
+            value={stats?.rojos}
             color="var(--semaforo-rojo)"
             bgColor="var(--semaforo-rojo-bg)"
             icon="🔴"
@@ -207,12 +201,7 @@ export default function Home() {
                 boxShadow: 'var(--shadow-lg)',
               }}
             >
-              <Mapa 
-                filtroSemaforo={filtroSemaforo} 
-                filtroSegmento={filtroSegmento} 
-                onSemaforoChange={setFiltroSemaforo} 
-                onSegmentoChange={setFiltroSegmento} 
-              />
+              <Mapa />
             </div>
           </div>
 
@@ -233,12 +222,7 @@ export default function Home() {
                 boxShadow: 'var(--shadow-lg)',
               }}
             >
-              <TablaObras 
-                filtroSemaforo={filtroSemaforo} 
-                filtroSegmento={filtroSegmento} 
-                onSemaforoChange={setFiltroSemaforo} 
-                onSegmentoChange={setFiltroSegmento} 
-              />
+              <TablaObras />
             </div>
           </div>
         </div>

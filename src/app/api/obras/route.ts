@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import obrasData from '../../../../YAKULAB_DATA.json'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -8,34 +8,32 @@ export async function GET(request: NextRequest) {
   const provincia = searchParams.get('provincia')
   const mapa      = searchParams.get('mapa') // si mapa=1, solo campos para el mapa
 
-  const where: Record<string, string> = {}
-  if (semaforo)  where.semaforo  = semaforo
-  if (segmento)  where.segmento  = segmento
-  if (provincia) where.provincia = provincia
+  let obras = obrasData as any[];
+
+  if (semaforo)  obras = obras.filter(o => o.semaforo === semaforo);
+  if (segmento)  obras = obras.filter(o => o.segmento === segmento);
+  if (provincia) obras = obras.filter(o => o.provincia === provincia);
+
+  obras.sort((a, b) => (b.scoreRiesgo || 0) - (a.scoreRiesgo || 0));
 
   // Para el mapa: solo campos ligeros (lat/lon/semaforo/score/alerta)
-  const select = mapa === '1' ? {
-    id: true,
-    codigoUnico: true,
-    nombreInversion: true,
-    provincia: true,
-    distrito: true,
-    latitud: true,
-    longitud: true,
-    semaforo: true,
-    scoreRiesgo: true,
-    alertaTexto: true,
-    diasSinDevengado: true,
-    fuenteCoord: true,
-    segmento: true,
-  } : undefined
+  if (mapa === '1') {
+    obras = obras.map(o => ({
+      id: o.id,
+      codigoUnico: o.codigoUnico,
+      nombreInversion: o.nombreInversion,
+      provincia: o.provincia,
+      distrito: o.distrito,
+      latitud: o.latitud,
+      longitud: o.longitud,
+      semaforo: o.semaforo,
+      scoreRiesgo: o.scoreRiesgo,
+      alertaTexto: o.alertaTexto,
+      diasSinDevengado: o.diasSinDevengado,
+      fuenteCoord: o.fuenteCoord,
+      segmento: o.segmento,
+    }));
+  }
 
-  const obras = await prisma.obra.findMany({
-    where,
-    ...(select ? { select } : {}),
-    orderBy: { scoreRiesgo: 'desc' },
-    take: 2000,
-  })
-
-  return Response.json({ obras, total: obras.length })
+  return Response.json({ obras: obras.slice(0, 2000), total: obras.length })
 }
